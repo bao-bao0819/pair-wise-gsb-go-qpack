@@ -111,10 +111,10 @@ func (d *Decoder) parseLiteralHeaderField(buf []byte) (_ HeaderField, rest []byt
 	if buf[0]&0x10 == 0 {
 		return HeaderField{}, buf, errNoDynamicTable
 	}
-	// We don't need to check the value of the N-bit here.
-	// It's only relevant when re-encoding header fields,
-	// and determines whether the header field can be added to the dynamic table.
-	// Since we don't support the dynamic table, we can ignore it.
+	// Preserve the Never-Index bit (01NTxxxx) so that it can be taken into
+	// account when the field is re-encoded downstream. It lives in the type
+	// byte, before the name-reference varint.
+	neverIndex := buf[0]&0x20 > 0
 	index, rest, err := readVarInt(4, buf)
 	if err != nil {
 		return HeaderField{}, buf, err
@@ -123,12 +123,11 @@ func (d *Decoder) parseLiteralHeaderField(buf []byte) (_ HeaderField, rest []byt
 	if !ok {
 		return HeaderField{}, buf, invalidIndexError(index)
 	}
-	buf = rest
-	if len(buf) == 0 {
-		return HeaderField{}, buf, io.ErrUnexpectedEOF
+	if len(rest) == 0 {
+		return HeaderField{}, rest, io.ErrUnexpectedEOF
 	}
-	usesHuffman := buf[0]&0x80 > 0
-	val, rest, err := d.readString(rest, 7, usesHuffman)
+	hf.NeverIndex = neverIndex
+	val, rest, err := d.readString(rest, 7, rest[0]&0x80 > 0)
 	if err != nil {
 		return HeaderField{}, rest, err
 	}
@@ -137,6 +136,7 @@ func (d *Decoder) parseLiteralHeaderField(buf []byte) (_ HeaderField, rest []byt
 }
 
 func (d *Decoder) parseLiteralHeaderFieldWithoutNameReference(buf []byte) (_ HeaderField, rest []byte, _ error) {
+	neverIndex := buf[0]&0x10 > 0
 	usesHuffmanForName := buf[0]&0x8 > 0
 	name, rest, err := d.readString(buf, 3, usesHuffmanForName)
 	if err != nil {
@@ -151,7 +151,7 @@ func (d *Decoder) parseLiteralHeaderFieldWithoutNameReference(buf []byte) (_ Hea
 	if err != nil {
 		return HeaderField{}, rest, err
 	}
-	return HeaderField{Name: name, Value: val}, rest, nil
+	return HeaderField{Name: name, Value: val, NeverIndex: neverIndex}, rest, nil
 }
 
 func (d *Decoder) readString(buf []byte, n uint8, usesHuffman bool) (string, []byte, error) {

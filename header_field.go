@@ -5,6 +5,13 @@ package qpack
 type HeaderField struct {
 	Name  string
 	Value string
+
+	// NeverIndex indicates that this field was received with the Never-Index
+	// bit (N) set in its literal representation, or that the local field
+	// policy decided that the field must never be indexed when re-encoded.
+	// It is only meaningful for literal header field representations;
+	// indexed representations do not carry the N bit.
+	NeverIndex bool
 }
 
 // IsPseudo reports whether the header field is an HTTP3 pseudo header.
