@@ -111,10 +111,9 @@ func (d *Decoder) parseLiteralHeaderField(buf []byte) (_ HeaderField, rest []byt
 	if buf[0]&0x10 == 0 {
 		return HeaderField{}, buf, errNoDynamicTable
 	}
-	// We don't need to check the value of the N-bit here.
-	// It's only relevant when re-encoding header fields,
-	// and determines whether the header field can be added to the dynamic table.
-	// Since we don't support the dynamic table, we can ignore it.
+	// The N bit (never indexed) is preserved on the decoded field,
+	// so that gateways re-encoding the field don't lose it.
+	neverIndexed := buf[0]&0x20 > 0
 	index, rest, err := readVarInt(4, buf)
 	if err != nil {
 		return HeaderField{}, buf, err
@@ -133,10 +132,12 @@ func (d *Decoder) parseLiteralHeaderField(buf []byte) (_ HeaderField, rest []byt
 		return HeaderField{}, rest, err
 	}
 	hf.Value = val
+	hf.Sensitive = neverIndexed
 	return hf, rest, nil
 }
 
 func (d *Decoder) parseLiteralHeaderFieldWithoutNameReference(buf []byte) (_ HeaderField, rest []byte, _ error) {
+	neverIndexed := buf[0]&0x10 > 0
 	usesHuffmanForName := buf[0]&0x8 > 0
 	name, rest, err := d.readString(buf, 3, usesHuffmanForName)
 	if err != nil {
@@ -151,7 +152,7 @@ func (d *Decoder) parseLiteralHeaderFieldWithoutNameReference(buf []byte) (_ Hea
 	if err != nil {
 		return HeaderField{}, rest, err
 	}
-	return HeaderField{Name: name, Value: val}, rest, nil
+	return HeaderField{Name: name, Value: val, Sensitive: neverIndexed}, rest, nil
 }
 
 func (d *Decoder) readString(buf []byte, n uint8, usesHuffman bool) (string, []byte, error) {

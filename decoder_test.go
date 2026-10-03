@@ -93,7 +93,7 @@ var (
 		}(),
 		Expected: []HeaderField{
 			{Name: "content-type", Value: loremIpsum1},
-			{Name: "access-control-request-method", Value: loremIpsum2},
+			{Name: "access-control-request-method", Value: loremIpsum2, Sensitive: true},
 		},
 	}
 	literalFieldWithHuffmanEncoding = testcase{
