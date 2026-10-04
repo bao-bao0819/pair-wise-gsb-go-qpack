@@ -107,6 +107,15 @@ type indexAndValues struct {
 	values map[string]uint8
 }
 
+var staticTableNameIndices map[string][]uint8
+
+func init() {
+	staticTableNameIndices = make(map[string][]uint8)
+	for i, entry := range staticTableEntries {
+		staticTableNameIndices[entry.Name] = append(staticTableNameIndices[entry.Name], uint8(i))
+	}
+}
+
 // A map of the header names from the static table to their index in the table.
 // This is used by the encoder to quickly find if a header is in the static table
 // and what value should be used to encode it.
