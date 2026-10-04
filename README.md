@@ -6,7 +6,12 @@
 
 This is a minimal QPACK ([RFC 9204](https://datatracker.ietf.org/doc/html/rfc9204)) implementation in Go. It reuses the Huffman encoder / decoder code from the [HPACK implementation in the Go standard library](https://github.com/golang/net/tree/master/http2/hpack).
 
-It is fully interoperable with other QPACK implementations (both encoders and decoders). However, it does not support the dynamic table and relies solely on the static table and string literals (including Huffman encoding), which limits compression efficiency. If you're interested in dynamic table support, please comment on [issue #33](https://github.com/quic-go/qpack/issues/33).
+It is fully interoperable with other QPACK implementations (both encoders and decoders).
+
+Two decoders are provided:
+
+* the stateless `Decoder`, which relies solely on the static table and string literals (including Huffman encoding) and rejects header blocks with a non-zero Required Insert Count, and
+* the connection-level `DynamicDecoder`, a transport-independent RFC 9204 decoder with dynamic table support. The HTTP/3 layer feeds it encoder stream instructions and field sections separately; it handles capacity changes, inserts (with name references or literal names), Duplicate, relative and post-base references, blocked streams, and the wrap-around encoding of the Required Insert Count. It emits Section Acknowledgment, Insert Count Increment and Stream Cancellation instructions for the decoder stream.
 
 ## Running the Interop Tests
 
